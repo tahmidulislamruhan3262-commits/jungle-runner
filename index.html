@@ -3,25 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ninja Jungle Run | 3D Edition</title>
+    <title>Ultimate Ninja Jungle Run</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { overflow: hidden; background: #000; font-family: 'Arial Black', sans-serif; }
-        canvas { display: block; background: linear-gradient(#1e3799, #38ada9); }
+        canvas { display: block; }
         #ui {
             position: absolute; top: 20px; left: 20px;
-            color: #f1c40f; font-size: 32px; text-shadow: 3px 3px #000;
+            color: #f1c40f; font-size: 32px; text-shadow: 2px 2px #000;
         }
         #instructions {
             position: absolute; bottom: 20px; width: 100%; text-align: center;
-            color: white; font-size: 14px; opacity: 0.7; letter-spacing: 1px;
+            color: white; font-size: 14px; text-shadow: 1px 1px #000;
         }
     </style>
 </head>
 <body>
 
 <div id="ui">SCORE: 0</div>
-<div id="instructions">SWIPE UP TO JUMP | SWIPE DOWN TO SLIDE</div>
+<div id="instructions">SWIPE UP: JUMP | SWIPE DOWN: SLIDE</div>
 <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -30,72 +30,44 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
+    // Graphics Loading
+    const bgImg = new Image(); bgImg.src = 'https://img.freepik.com/free-vector/parallax-background-landscape-game-scenic-nature-view-forest-with-mountains-under-clear-blue-sky-with-shining-sun-clouds-cartoon-natural-scenery-view-game-animation-background_107791-23653.jpg';
+    
     let score = 0;
     let gameSpeed = 7;
     let isGameOver = false;
     const gravity = 0.8;
 
-    // Ninja Player Object
     const ninja = {
-        x: 80,
-        y: canvas.height - 150,
-        w: 50,
-        h: 80,
-        originalH: 80,
-        color: '#2c3e50',
-        dy: 0,
-        jumpForce: 18,
-        onGround: false,
-        isSliding: false,
-        slideTimer: 0
+        x: 80, y: canvas.height - 180,
+        w: 60, h: 90, originalH: 90,
+        dy: 0, jumpForce: 18,
+        onGround: false, isSliding: false, slideTimer: 0
     };
 
     let obstacles = [];
+    let bgX = 0;
 
-    // Controls
-    function jump() {
-        if (ninja.onGround && !ninja.isSliding) {
-            ninja.dy = -ninja.jumpForce;
-            ninja.onGround = false;
-        }
-    }
+    // Controls Logic
+    function jump() { if (ninja.onGround && !ninja.isSliding) { ninja.dy = -ninja.jumpForce; ninja.onGround = false; } }
+    function slide() { if (ninja.onGround && !ninja.isSliding) { ninja.isSliding = true; ninja.h = 45; ninja.y += 45; ninja.slideTimer = 40; } }
 
-    function slide() {
-        if (ninja.onGround && !ninja.isSliding) {
-            ninja.isSliding = true;
-            ninja.h = ninja.originalH / 2;
-            ninja.y += ninja.h;
-            ninja.slideTimer = 40; 
-        }
-    }
+    window.addEventListener('keydown', e => { if (e.code === 'Space' || e.code === 'ArrowUp') jump(); if (e.code === 'ArrowDown') slide(); });
 
-    // Input Listeners
-    window.addEventListener('keydown', e => {
-        if (e.code === 'Space' || e.code === 'ArrowUp') jump();
-        if (e.code === 'ArrowDown' || e.key === 's') slide();
-    });
-
-    // Touch Swipe Logic
     let touchY = 0;
     window.addEventListener('touchstart', e => touchY = e.touches[0].clientY);
     window.addEventListener('touchend', e => {
         let diff = touchY - e.changedTouches[0].clientY;
-        if (diff > 50) jump();
-        if (diff < -50) slide();
+        if (diff > 50) jump(); else if (diff < -50) slide();
     });
 
     function spawnObstacle() {
-        const types = ['ROCK', 'WOOD', 'WATER'];
+        const types = ['ROCK', 'WOOD'];
         const type = types[Math.floor(Math.random() * types.length)];
-        let obsH = type === 'WOOD' ? 40 : 60;
-        let obsY = type === 'WOOD' ? canvas.height - 160 : canvas.height - 60 - obsH;
-        
         obstacles.push({
             x: canvas.width,
-            y: obsY,
-            w: type === 'WATER' ? 120 : 50,
-            h: obsH,
-            type: type
+            y: type === 'WOOD' ? canvas.height - 180 : canvas.height - 110,
+            w: 60, h: 50, type: type
         });
     }
 
@@ -103,86 +75,55 @@
 
     function gameLoop() {
         if (isGameOver) return;
-
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Environment Gradient (Jungle Theme)
-        let skyGrd = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        skyGrd.addColorStop(0, "#0a3d62");
-        skyGrd.addColorStop(0.7, "#3c6382");
-        skyGrd.addColorStop(1, "#079992");
-        ctx.fillStyle = skyGrd;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw Scrolling Background
+        bgX -= gameSpeed / 2;
+        if (bgX <= -canvas.width) bgX = 0;
+        ctx.drawImage(bgImg, bgX, 0, canvas.width, canvas.height);
+        ctx.drawImage(bgImg, bgX + canvas.width, 0, canvas.width, canvas.height);
 
         // Ground
-        ctx.fillStyle = "#2d3436";
+        ctx.fillStyle = "rgba(45, 52, 54, 0.8)";
         ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
 
         // Physics
         ninja.dy += gravity;
         ninja.y += ninja.dy;
-
-        if (ninja.y + ninja.h > canvas.height - 60) {
-            ninja.y = canvas.height - 60 - ninja.h;
-            ninja.dy = 0;
-            ninja.onGround = true;
-        }
+        if (ninja.y + ninja.h > canvas.height - 60) { ninja.y = canvas.height - 60 - ninja.h; ninja.dy = 0; ninja.onGround = true; }
 
         if (ninja.isSliding) {
             ninja.slideTimer--;
-            if (ninja.slideTimer <= 0) {
-                ninja.isSliding = false;
-                ninja.y -= ninja.h;
-                ninja.h = ninja.originalH;
-            }
+            if (ninja.slideTimer <= 0) { ninja.isSliding = false; ninja.y -= ninja.h; ninja.h = ninja.originalH; }
         }
 
-        // Obstacles Logic
+        // Obstacles
         spawnTimer++;
-        if (spawnTimer > 100 - gameSpeed) {
-            spawnObstacle();
-            spawnTimer = 0;
-        }
+        if (spawnTimer > 100 - gameSpeed) { spawnObstacle(); spawnTimer = 0; }
 
         obstacles.forEach((obs, i) => {
             obs.x -= gameSpeed;
-
-            // Draw Obstacles with colors
-            if (obs.type === 'ROCK') ctx.fillStyle = '#7f8c8d';
-            else if (obs.type === 'WOOD') ctx.fillStyle = '#d35400';
-            else ctx.fillStyle = '#3498db'; // Water
-
+            // Obstacle Look
+            ctx.fillStyle = obs.type === 'ROCK' ? '#7f8c8d' : '#d35400';
+            ctx.shadowBlur = 10; ctx.shadowColor = "black";
             ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+            ctx.shadowBlur = 0;
 
-            // Collision Detection
-            if (ninja.x < obs.x + obs.w && ninja.x + ninja.w > obs.x &&
-                ninja.y < obs.y + obs.h && ninja.y + ninja.h > obs.y) {
-                gameOver();
-            }
-
-            if (obs.x + obs.w < 0) {
-                obstacles.splice(i, 1);
-                score += 10;
-                gameSpeed += 0.1;
-            }
+            if (ninja.x < obs.x + obs.w && ninja.x + ninja.w > obs.x && ninja.y < obs.y + obs.h && ninja.y + ninja.h > obs.y) gameOver();
+            if (obs.x + obs.w < 0) { obstacles.splice(i, 1); score += 10; gameSpeed += 0.1; }
         });
 
-        // Draw Ninja
-        ctx.fillStyle = ninja.color;
+        // Ninja Look (Character Drawing)
+        ctx.fillStyle = "#2c3e50";
         ctx.fillRect(ninja.x, ninja.y, ninja.w, ninja.h);
-        ctx.fillStyle = "white"; // Mask
-        ctx.fillRect(ninja.x + 25, ninja.y + 10, 20, 8);
+        ctx.fillStyle = "#fff"; // Mask
+        ctx.fillRect(ninja.x + 35, ninja.y + 15, 20, 10);
 
         document.getElementById('ui').innerText = "SCORE: " + score;
         requestAnimationFrame(gameLoop);
     }
 
-    function gameOver() {
-        isGameOver = true;
-        alert("GAME OVER! \nFinal Score: " + score);
-        location.reload();
-    }
-
+    function gameOver() { isGameOver = true; alert("GAME OVER! Score: " + score); location.reload(); }
     gameLoop();
 </script>
 </body>
