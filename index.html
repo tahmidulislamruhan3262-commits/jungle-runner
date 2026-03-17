@@ -3,152 +3,279 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shadow Ninja Runner</title>
+    <title>Ultimate Human Runner 2026 | Pro Edition</title>
     <style>
+        /* Professional Game Styling */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { overflow: hidden; background: #011627; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        canvas { display: block; background: linear-gradient(to bottom, #010c15 0%, #0d2c47 100%); }
-        #scoreBoard {
-            position: absolute; top: 20px; left: 20px;
-            color: #00d2ff; font-size: 28px; font-weight: bold;
-            text-shadow: 0 0 10px #00d2ff;
+        body { 
+            overflow: hidden; 
+            background: #111; 
+            font-family: 'Segoe UI', sans-serif; 
+            user-select: none;
+            touch-action: none;
+        }
+        canvas { 
+            display: block; 
+            background: linear-gradient(to bottom, #000428, #004e92); 
+        }
+        #game-ui {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .score-container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 15px;
+            border-left: 5px solid #00f2ff;
+            backdrop-filter: blur(5px);
+        }
+        #score-val {
+            color: #fff;
+            font-size: 38px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-shadow: 0 0 15px #00f2ff;
+        }
+        #controls-hint {
+            position: absolute;
+            bottom: 40px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 14px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            opacity: 0.6;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0.3; }
         }
     </style>
 </head>
 <body>
 
-<div id="scoreBoard">SCORE: 0</div>
+<div id="game-ui">
+    <div class="score-container">
+        <div id="score-val">0000</div>
+    </div>
+</div>
+<div id="controls-hint">Swipe Up: Jump | Swipe Down: Slide</div>
 <canvas id="gameCanvas"></canvas>
 
 <script>
+    /** @type {HTMLCanvasElement} */
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
 
+    // Global Settings
     let score = 0;
-    let gameSpeed = 6;
+    let gameSpeed = 8;
     let isGameOver = false;
-    const gravity = 0.7;
+    let frame = 0;
+    const gravity = 0.85;
 
-    const ninja = {
-        x: 60,
-        y: canvas.height - 150,
-        w: 50,
-        h: 80,
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Human Character Object
+    const human = {
+        x: 80,
+        y: canvas.height - 180,
+        width: 45,
+        height: 95,
+        baseHeight: 95,
         dy: 0,
-        jumpForce: 16,
+        jumpForce: 18,
         onGround: false,
         isSliding: false,
-        slideTimer: 0
+        slideTimer: 0,
+        animFrame: 0,
+
+        update() {
+            // Apply Physics
+            this.dy += gravity;
+            this.y += this.dy;
+
+            // Ground Collision
+            const groundY = canvas.height - 80;
+            if (this.y + this.height > groundY) {
+                this.y = groundY - this.height;
+                this.dy = 0;
+                this.onGround = true;
+            }
+
+            // Slide Logic
+            if (this.isSliding) {
+                this.slideTimer--;
+                if (this.slideTimer <= 0) {
+                    this.isSliding = false;
+                    this.y -= 45; // Pop back up
+                    this.height = this.baseHeight;
+                }
+            }
+            
+            this.animFrame += 0.15;
+        },
+
+        draw() {
+            ctx.save();
+            ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+            
+            // Neon Glow Effect
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = "#00f2ff";
+            ctx.fillStyle = "#fff";
+
+            if (this.isSliding) {
+                // Drawing a sliding human silhouette
+                ctx.beginPath();
+                ctx.ellipse(0, 20, 45, 18, 0, 0, Math.PI * 2);
+                ctx.fill();
+                // Head while sliding
+                ctx.beginPath();
+                ctx.arc(35, 15, 10, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Head
+                ctx.beginPath();
+                ctx.arc(0, -38, 12, 0, Math.PI * 2);
+                ctx.fill();
+                // Torso
+                ctx.fillRect(-12, -26, 24, 42);
+                
+                // Animated Limbs (Hands/Legs)
+                ctx.lineWidth = 7;
+                ctx.strokeStyle = "#fff";
+                ctx.lineCap = "round";
+                
+                let limbMove = Math.sin(this.animFrame) * 25;
+                
+                // Hands
+                ctx.beginPath();
+                ctx.moveTo(0, -20);
+                ctx.lineTo(limbMove, 5);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(0, -20);
+                ctx.lineTo(-limbMove, 5);
+                ctx.stroke();
+
+                // Legs
+                ctx.beginPath();
+                ctx.moveTo(0, 15);
+                ctx.lineTo(-limbMove, 45);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(0, 15);
+                ctx.lineTo(limbMove, 45);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
     };
 
+    // Obstacle Logic
     let obstacles = [];
+    function spawnObstacle() {
+        let isHigh = Math.random() > 0.5;
+        // Adjusted height so it hits the head if not sliding
+        let obsY = isHigh ? canvas.height - 180 : canvas.height - 125;
+        
+        obstacles.push({
+            x: canvas.width,
+            y: obsY,
+            width: 60,
+            height: 50,
+            type: isHigh ? 'DANGER' : 'GROUND',
+            color: isHigh ? '#ff3e00' : '#00f2ff'
+        });
+    }
 
-    // Touch Swipe Controls
-    let startY = 0;
-    window.addEventListener('touchstart', e => startY = e.touches[0].clientY);
+    // Input Management
+    let touchStart = 0;
+    window.addEventListener('touchstart', e => touchStart = e.touches[0].clientY);
     window.addEventListener('touchend', e => {
-        let diff = startY - e.changedTouches[0].clientY;
-        if (diff > 40 && ninja.onGround) {
-            ninja.dy = -ninja.jumpForce;
-            ninja.onGround = false;
-        } else if (diff < -40 && ninja.onGround) {
-            ninja.isSliding = true;
-            ninja.slideTimer = 30;
+        let move = touchStart - e.changedTouches[0].clientY;
+        if (move > 45 && human.onGround) {
+            human.dy = -human.jumpForce;
+            human.onGround = false;
+        } else if (move < -45 && human.onGround && !human.isSliding) {
+            human.isSliding = true;
+            human.height = 45;
+            human.slideTimer = 35;
         }
     });
 
-    function spawnObstacle() {
-        let type = Math.random() > 0.5 ? 'LOW' : 'HIGH';
-        obstacles.push({
-            x: canvas.width,
-            y: type === 'HIGH' ? canvas.height - 180 : canvas.height - 110,
-            w: 50,
-            h: 40,
-            type: type
-        });
-    }
-
-    let timer = 0;
-    function animate() {
+    // Game Loop
+    function main() {
         if (isGameOver) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        frame++;
 
-        // Ground
-        ctx.fillStyle = "#0d2c47";
-        ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
-        ctx.strokeStyle = "#00d2ff";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(0, canvas.height - 60, canvas.width, 2);
-
-        // Ninja Physics
-        ninja.dy += gravity;
-        ninja.y += ninja.dy;
-
-        if (ninja.y + ninja.h > canvas.height - 60) {
-            ninja.y = canvas.height - 60 - ninja.h;
-            ninja.dy = 0;
-            ninja.onGround = true;
-        }
-
-        if (ninja.isSliding) {
-            ninja.slideTimer--;
-            if (ninja.slideTimer <= 0) ninja.isSliding = false;
-        }
-
-        // Draw Ninja as a Shadow Warrior (Not a box!)
-        ctx.save();
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = "#00d2ff";
+        // 1. Draw Environment
         ctx.fillStyle = "#000";
+        ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
+        ctx.strokeStyle = "rgba(0, 242, 255, 0.5)";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(0, canvas.height - 80, canvas.width, 2);
 
-        if (ninja.isSliding) {
-            // Sliding shape
-            ctx.beginPath();
-            ctx.ellipse(ninja.x + 30, ninja.y + 60, 40, 20, 0, 0, Math.PI * 2);
-            ctx.fill();
-        } else {
-            // Standing Ninja Shadow
-            ctx.fillRect(ninja.x, ninja.y, ninja.w, ninja.h);
-            // Red Glowing Eyes
-            ctx.shadowBlur = 5;
-            ctx.fillStyle = "#ff0000";
-            ctx.fillRect(ninja.x + 35, ninja.y + 15, 8, 3);
-        }
-        ctx.restore();
+        // 2. Update & Draw Human
+        human.update();
+        human.draw();
 
-        // Obstacles
-        timer++;
-        if (timer > 100) { spawnObstacle(); timer = 0; }
+        // 3. Manage Obstacles
+        if (frame % Math.floor(110 - gameSpeed) === 0) spawnObstacle();
 
-        obstacles.forEach((obs, i) => {
-            obs.x -= gameSpeed;
-            ctx.fillStyle = obs.type === 'HIGH' ? '#ff3e00' : '#7f8c8d';
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = ctx.fillStyle;
-            ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-            ctx.shadowBlur = 0;
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            let o = obstacles[i];
+            o.x -= gameSpeed;
 
-            let py = ninja.isSliding ? ninja.y + 40 : ninja.y;
-            let ph = ninja.isSliding ? ninja.h - 40 : ninja.h;
-            if (ninja.x < obs.x + obs.w && ninja.x + ninja.w > obs.x && py < obs.y + obs.h && py + ph > obs.y) {
+            // Draw Obstacle
+            ctx.save();
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = o.color;
+            ctx.fillStyle = o.color;
+            ctx.fillRect(o.x, o.y, o.width, o.height);
+            ctx.restore();
+
+            // Precise Collision Detection
+            let hitboxY = human.isSliding ? human.y + 40 : human.y;
+            let hitboxH = human.isSliding ? human.height : human.height;
+
+            if (human.x < o.x + o.width &&
+                human.x + human.width > o.x &&
+                hitboxY < o.y + o.height &&
+                hitboxY + hitboxH > o.y) {
                 isGameOver = true;
-                alert("Game Over! Score: " + score);
+                alert("GAME OVER! \nYour Final Score: " + score);
                 location.reload();
             }
 
-            if (obs.x + obs.w < 0) {
+            // Cleanup & Score
+            if (o.x + o.width < 0) {
                 obstacles.splice(i, 1);
-                score += 10;
-                gameSpeed += 0.05;
+                score += 100;
+                gameSpeed += 0.1;
             }
-        });
+        }
 
-        document.getElementById('scoreBoard').innerText = "SCORE: " + score;
-        requestAnimationFrame(animate);
+        document.getElementById('score-val').innerText = score.toString().padStart(4, '0');
+        requestAnimationFrame(main);
     }
-    animate();
+
+    main();
 </script>
 </body>
 </html>
