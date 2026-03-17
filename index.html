@@ -3,17 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ninja Jungle Run PRO</title>
+    <title>Shadow Ninja Runner</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { overflow: hidden; background: #011627; font-family: sans-serif; }
-        canvas { display: block; }
-        #ui { position: absolute; top: 20px; left: 20px; color: #ff9f43; font-size: 30px; font-weight: bold; text-shadow: 2px 2px #000; }
+        body { overflow: hidden; background: #011627; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; background: linear-gradient(to bottom, #010c15 0%, #0d2c47 100%); }
+        #scoreBoard {
+            position: absolute; top: 20px; left: 20px;
+            color: #00d2ff; font-size: 28px; font-weight: bold;
+            text-shadow: 0 0 10px #00d2ff;
+        }
     </style>
 </head>
 <body>
 
-<div id="ui">SCORE: 0</div>
+<div id="scoreBoard">SCORE: 0</div>
 <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -22,99 +26,113 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // Assets
-    const bgImg = new Image();
-    bgImg.src = 'https://img.freepik.com/free-vector/jungle-forest-game-background_107791-1773.jpg';
-
     let score = 0;
-    let gameSpeed = 7;
+    let gameSpeed = 6;
     let isGameOver = false;
-    let bgX = 0;
+    const gravity = 0.7;
 
-    const player = {
-        x: 50, y: canvas.height - 150, w: 50, h: 80,
-        dy: 0, jumpForce: 15, gravity: 0.6,
-        onGround: false, isSliding: false, slideTimer: 0
+    const ninja = {
+        x: 60,
+        y: canvas.height - 150,
+        w: 50,
+        h: 80,
+        dy: 0,
+        jumpForce: 16,
+        onGround: false,
+        isSliding: false,
+        slideTimer: 0
     };
 
     let obstacles = [];
 
-    // Inputs
+    // Touch Swipe Controls
     let startY = 0;
     window.addEventListener('touchstart', e => startY = e.touches[0].clientY);
     window.addEventListener('touchend', e => {
         let diff = startY - e.changedTouches[0].clientY;
-        if (diff > 30 && player.onGround) { // Jump
-            player.dy = -player.jumpForce;
-            player.onGround = false;
-        } else if (diff < -30 && player.onGround) { // Slide
-            player.isSliding = true;
-            player.slideTimer = 30;
+        if (diff > 40 && ninja.onGround) {
+            ninja.dy = -ninja.jumpForce;
+            ninja.onGround = false;
+        } else if (diff < -40 && ninja.onGround) {
+            ninja.isSliding = true;
+            ninja.slideTimer = 30;
         }
     });
 
-    function spawn() {
-        let type = Math.random() > 0.5 ? 'ROCK' : 'TREE_BRANCH';
+    function spawnObstacle() {
+        let type = Math.random() > 0.5 ? 'LOW' : 'HIGH';
         obstacles.push({
             x: canvas.width,
-            y: type === 'TREE_BRANCH' ? canvas.height - 180 : canvas.height - 100,
-            w: 50, h: 40, type: type
+            y: type === 'HIGH' ? canvas.height - 180 : canvas.height - 110,
+            w: 50,
+            h: 40,
+            type: type
         });
     }
 
     let timer = 0;
-    function loop() {
+    function animate() {
         if (isGameOver) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Draw Jungle Background
-        bgX -= gameSpeed * 0.5;
-        if (bgX <= -canvas.width) bgX = 0;
-        ctx.drawImage(bgImg, bgX, 0, canvas.width, canvas.height);
-        ctx.drawImage(bgImg, bgX + canvas.width, 0, canvas.width, canvas.height);
-
         // Ground
-        ctx.fillStyle = "rgba(0,0,0,0.4)";
+        ctx.fillStyle = "#0d2c47";
         ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
+        ctx.strokeStyle = "#00d2ff";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(0, canvas.height - 60, canvas.width, 2);
 
-        // Player Physics
-        player.dy += player.gravity;
-        player.y += player.dy;
+        // Ninja Physics
+        ninja.dy += gravity;
+        ninja.y += ninja.dy;
 
-        if (player.y + player.h > canvas.height - 60) {
-            player.y = canvas.height - 60 - player.h;
-            player.dy = 0;
-            player.onGround = true;
+        if (ninja.y + ninja.h > canvas.height - 60) {
+            ninja.y = canvas.height - 60 - ninja.h;
+            ninja.dy = 0;
+            ninja.onGround = true;
         }
 
-        if (player.isSliding) {
-            player.slideTimer--;
-            if (player.slideTimer <= 0) player.isSliding = false;
+        if (ninja.isSliding) {
+            ninja.slideTimer--;
+            if (ninja.slideTimer <= 0) ninja.isSliding = false;
         }
 
-        // Draw Ninja Player
-        ctx.fillStyle = "#2d3436"; // Black Ninja Shadow
-        if (player.isSliding) {
-            ctx.fillRect(player.x, player.y + 40, player.w + 20, player.h - 40);
+        // Draw Ninja as a Shadow Warrior (Not a box!)
+        ctx.save();
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "#00d2ff";
+        ctx.fillStyle = "#000";
+
+        if (ninja.isSliding) {
+            // Sliding shape
+            ctx.beginPath();
+            ctx.ellipse(ninja.x + 30, ninja.y + 60, 40, 20, 0, 0, Math.PI * 2);
+            ctx.fill();
         } else {
-            ctx.fillRect(player.x, player.y, player.w, player.h);
-            ctx.fillStyle = "white"; // Ninja Headband
-            ctx.fillRect(player.x + 30, player.y + 15, 20, 5);
+            // Standing Ninja Shadow
+            ctx.fillRect(ninja.x, ninja.y, ninja.w, ninja.h);
+            // Red Glowing Eyes
+            ctx.shadowBlur = 5;
+            ctx.fillStyle = "#ff0000";
+            ctx.fillRect(ninja.x + 35, ninja.y + 15, 8, 3);
         }
+        ctx.restore();
 
         // Obstacles
         timer++;
-        if (timer > 100) { spawn(); timer = 0; }
+        if (timer > 100) { spawnObstacle(); timer = 0; }
 
         obstacles.forEach((obs, i) => {
             obs.x -= gameSpeed;
-            ctx.fillStyle = obs.type === 'ROCK' ? '#636e72' : '#fab1a0';
+            ctx.fillStyle = obs.type === 'HIGH' ? '#ff3e00' : '#7f8c8d';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = ctx.fillStyle;
             ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+            ctx.shadowBlur = 0;
 
-            // Collision Detection
-            let py = player.isSliding ? player.y + 40 : player.y;
-            let ph = player.isSliding ? player.h - 40 : player.h;
-            if (player.x < obs.x + obs.w && player.x + player.w > obs.x && py < obs.y + obs.h && py + ph > obs.y) {
+            let py = ninja.isSliding ? ninja.y + 40 : ninja.y;
+            let ph = ninja.isSliding ? ninja.h - 40 : ninja.h;
+            if (ninja.x < obs.x + obs.w && ninja.x + ninja.w > obs.x && py < obs.y + obs.h && py + ph > obs.y) {
                 isGameOver = true;
                 alert("Game Over! Score: " + score);
                 location.reload();
@@ -123,14 +141,14 @@
             if (obs.x + obs.w < 0) {
                 obstacles.splice(i, 1);
                 score += 10;
-                gameSpeed += 0.1;
+                gameSpeed += 0.05;
             }
         });
 
-        document.getElementById('ui').innerText = "SCORE: " + score;
-        requestAnimationFrame(loop);
+        document.getElementById('scoreBoard').innerText = "SCORE: " + score;
+        requestAnimationFrame(animate);
     }
-    loop();
+    animate();
 </script>
 </body>
 </html>
